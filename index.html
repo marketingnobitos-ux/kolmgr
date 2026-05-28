@@ -229,8 +229,19 @@ export default function App(){
   const toggleSel=id=>setSelIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
   const toggleESel=id=>setESelIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
 
-  const nav=[{id:"dashboard",sym:"—",label:"Database"},{id:"eksekusi",sym:"◈",label:"Eksekusi"},{id:"keuangan",sym:"◎",label:"Keuangan"},{id:"rekomendasi",sym:"✦",label:"Smart Pick"},{id:"tambah",sym:"+",label:"Tambah KOL"}];
+  const nav=[
+    {id:"dashboard",  sym:"—", label:"Database"},
+    {id:"eksekusi",   sym:"◈", label:"Eksekusi"},
+    {id:"keuangan",   sym:"◎", label:"Keuangan",   adminOnly:true},
+    {id:"rekomendasi",sym:"✦", label:"Smart Pick"},
+    {id:"tambah",     sym:"+", label:"Tambah KOL"},
+  ];
   const sW=side?200:52;
+
+  // Kalau mode berganti jadi Staff & sedang di halaman admin-only → redirect
+  useEffect(()=>{
+    if(!isAdmin && nav.find(n=>n.id===menu)?.adminOnly) setMenu("dashboard");
+  },[isAdmin]);
 
   const renderDashboard=()=>(
     <div className="fi">
@@ -365,7 +376,9 @@ export default function App(){
                       <div style={{display:"flex",gap:3,alignItems:"center"}}>
                         <input value={rateV} onChange={e=>setRateInps(p=>({...p,[item.id]:e.target.value}))} placeholder="0" style={{flex:1,minWidth:0,background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"4px 6px",fontSize:10,color:C.text,fontFamily:C.mono,outline:"none"}}/>
                         {["deal","konten_tayang"].includes(item.pipelineStage)&&(
-                          <button onClick={()=>{const r=rateInps[item.id]||item.rateCard;if(r){const n=parseInt(r.replace(/\D/g,""));if(n){update(item.id,{rateCard:String(n),isRateApproved:true});showToast("Rate disetujui");}}}} style={{background:item.isRateApproved?C.okBg:C.s2,border:`1px solid ${item.isRateApproved?C.okB:C.border}`,borderRadius:3,padding:"4px 6px",cursor:"pointer",color:item.isRateApproved?C.ok:C.dim,fontSize:11}}>{item.isRateApproved?"✓":"○"}</button>
+                          isAdmin
+                            ?<button onClick={()=>{const r=rateInps[item.id]||item.rateCard;if(r){const n=parseInt(r.replace(/\D/g,""));if(n){update(item.id,{rateCard:String(n),isRateApproved:true});showToast("Rate disetujui");}}}} style={{background:item.isRateApproved?C.okBg:C.s2,border:`1px solid ${item.isRateApproved?C.okB:C.border}`,borderRadius:3,padding:"4px 6px",cursor:"pointer",color:item.isRateApproved?C.ok:C.dim,fontSize:11,title:"Approve rate"}}>{item.isRateApproved?"✓":"○"}</button>
+                            :<span style={{fontSize:10,color:item.isRateApproved?C.ok:C.dim,fontFamily:C.mono,padding:"2px 4px"}} title="Hanya Admin yang bisa approve rate">{item.isRateApproved?"✓":""}</span>
                         )}
                         <Btn v="ghost" sz="sm" onClick={()=>handleSaveRate(item.id)} style={{padding:"3px 7px",fontSize:10}}>→</Btn>
                       </div>
@@ -374,7 +387,11 @@ export default function App(){
                   <div style={{paddingLeft:4,display:"flex",gap:4}}>
                     <Btn v="subtle" sz="sm" onClick={()=>handleContact(item)} style={{fontSize:10,padding:"4px 8px"}}>↗ Hubungi</Btn>
                     <button onClick={()=>{setEditId(isEdit?null:item.id);setEditNote(item.catatan||"");}} style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:3,padding:"4px 7px",cursor:"pointer",color:C.muted,fontSize:11}}>✎</button>
-                    {item.pipelineStage==="konten_tayang"&&<button onClick={()=>update(item.id,{paymentStatus:item.paymentStatus==="paid"?"unpaid":"paid"})} style={{background:item.paymentStatus==="paid"?C.okBg:C.s2,border:`1px solid ${item.paymentStatus==="paid"?C.okB:C.border}`,borderRadius:3,padding:"4px 7px",cursor:"pointer",color:item.paymentStatus==="paid"?C.ok:C.dim,fontSize:11}}>{item.paymentStatus==="paid"?"✓$":"$"}</button>}
+                    {item.pipelineStage==="konten_tayang"&&(
+                      isAdmin
+                        ?<button onClick={()=>update(item.id,{paymentStatus:item.paymentStatus==="paid"?"unpaid":"paid"})} style={{background:item.paymentStatus==="paid"?C.okBg:C.s2,border:`1px solid ${item.paymentStatus==="paid"?C.okB:C.border}`,borderRadius:3,padding:"4px 7px",cursor:"pointer",color:item.paymentStatus==="paid"?C.ok:C.dim,fontSize:11}}>{item.paymentStatus==="paid"?"✓$":"$"}</button>
+                        :<span style={{fontSize:10,color:item.paymentStatus==="paid"?C.ok:C.dim,fontFamily:C.mono,padding:"4px 4px"}}>{item.paymentStatus==="paid"?"✓$":"—"}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -386,6 +403,21 @@ export default function App(){
   };
 
   const renderKeuangan=()=>{
+    if(!isAdmin) return(
+      <div className="fi" style={{display:"flex",flexDirection:"column",alignItems:"center",
+        justifyContent:"center",minHeight:"55vh",gap:14,textAlign:"center"}}>
+        <div style={{width:52,height:52,borderRadius:"50%",background:C.eBg,
+          border:`1px solid ${C.eB}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontSize:22,color:C.err}}>⊘</span>
+        </div>
+        <div style={{fontFamily:C.head,fontWeight:700,fontSize:18,color:C.text}}>Akses Terbatas</div>
+        <div style={{fontSize:13,color:C.muted,maxWidth:300,lineHeight:1.6}}>
+          Halaman Keuangan hanya dapat diakses oleh Admin.<br/>
+          Hubungi Admin untuk informasi anggaran.
+        </div>
+        <Btn v="ghost" onClick={()=>setMenu("dashboard")}>← Kembali ke Database</Btn>
+      </div>
+    );
     const pct=fin.budget>0?Math.min(fin.used/fin.budget*100,100):0;
     const barC=pct>90?C.err:pct>70?C.warn:C.accent;
     return(
@@ -438,7 +470,10 @@ export default function App(){
                 <div style={{paddingLeft:4,fontSize:10,fontWeight:700,color:BCLR[item.brand],fontFamily:C.mono}}>{BSHORT[item.brand]}</div>
                 <div style={{paddingLeft:4}}><div style={{fontSize:12,color:item.isRateApproved?C.text:C.dim,fontFamily:C.mono}}>{item.rateCard?fmtRp(parseInt(item.rateCard)):"—"}</div>{item.isRateApproved&&<div style={{fontSize:9,color:C.ok,marginTop:1,fontFamily:C.mono}}>✓ disetujui</div>}</div>
                 <div style={{paddingLeft:4}}><Chip label={stg.label} c={stg.c} bg={stg.bg} small/></div>
-                <div style={{paddingLeft:4}}><button onClick={()=>update(item.id,{paymentStatus:item.paymentStatus==="paid"?"unpaid":"paid"})} style={{background:item.paymentStatus==="paid"?C.okBg:C.s2,border:`1px solid ${item.paymentStatus==="paid"?C.okB:C.border}`,borderRadius:3,padding:"4px 10px",cursor:"pointer",color:item.paymentStatus==="paid"?C.ok:C.muted,fontSize:10,fontFamily:C.mono,fontWeight:600}}>{item.paymentStatus==="paid"?"✓ PAID":"○ UNPAID"}</button></div>
+                <div style={{paddingLeft:4}}>{isAdmin
+                  ?<button onClick={()=>update(item.id,{paymentStatus:item.paymentStatus==="paid"?"unpaid":"paid"})} style={{background:item.paymentStatus==="paid"?C.okBg:C.s2,border:`1px solid ${item.paymentStatus==="paid"?C.okB:C.border}`,borderRadius:3,padding:"4px 10px",cursor:"pointer",color:item.paymentStatus==="paid"?C.ok:C.muted,fontSize:10,fontFamily:C.mono,fontWeight:600}}>{item.paymentStatus==="paid"?"✓ PAID":"○ UNPAID"}</button>
+                  :<span style={{fontSize:10,fontFamily:C.mono,fontWeight:600,color:item.paymentStatus==="paid"?C.ok:C.dim,padding:"4px 10px",display:"inline-block"}}>{item.paymentStatus==="paid"?"✓ PAID":"○ UNPAID"}</span>
+                }</div>
               </div>
             );
           })}
@@ -535,19 +570,50 @@ export default function App(){
         )}
         <div style={{margin:"12px 0",borderTop:"1px solid rgba(255,255,255,.05)"}}/>
         <nav style={{padding:"0 8px",flex:1}}>
-          {nav.map(n=>(
-            <button key={n.id} onClick={()=>setMenu(n.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:side?"8px 10px":"8px 0",justifyContent:side?"flex-start":"center",background:menu===n.id?C.sideSel:"transparent",border:"none",borderLeft:`2px solid ${menu===n.id?C.accent:"transparent"}`,cursor:"pointer",color:menu===n.id?"#E8E4DC":C.sideMut,fontFamily:C.body,fontWeight:menu===n.id?500:400,fontSize:12,marginBottom:1,transition:"all .12s"}}>
-              <span style={{fontSize:n.id==="tambah"?17:14,flexShrink:0,color:menu===n.id?C.accent:C.sideMut}}>{n.sym}</span>
-              {side&&<span style={{whiteSpace:"nowrap"}}>{n.label}</span>}
-            </button>
-          ))}
+          {nav.map(n=>{
+            const locked=n.adminOnly&&!isAdmin;
+            const active=menu===n.id;
+            return(
+              <button key={n.id}
+                onClick={()=>locked?showToast("Akses terbatas — khusus Admin","err"):setMenu(n.id)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:10,
+                  padding:side?"8px 10px":"8px 0",
+                  justifyContent:side?"flex-start":"center",
+                  background:active?C.sideSel:"transparent",border:"none",
+                  borderLeft:`2px solid ${active?C.accent:"transparent"}`,
+                  cursor:locked?"not-allowed":"pointer",
+                  color:active?"#E8E4DC":locked?"#3A3835":C.sideMut,
+                  fontFamily:C.body,fontWeight:active?500:400,
+                  fontSize:12,marginBottom:1,transition:"all .12s",
+                  opacity:locked?.45:1,
+                }}>
+                <span style={{fontSize:n.id==="tambah"?17:14,flexShrink:0,
+                  color:locked?"#3A3835":active?C.accent:C.sideMut}}>
+                  {locked?"⊘":n.sym}
+                </span>
+                {side&&<span style={{whiteSpace:"nowrap",flex:1}}>{n.label}</span>}
+                {side&&locked&&<span style={{fontSize:8,color:"#3A3835",fontFamily:C.mono,letterSpacing:".04em"}}>ADMIN</span>}
+              </button>
+            );
+          })}
         </nav>
         <div style={{padding:"10px 8px",borderTop:"1px solid rgba(255,255,255,.05)",flexShrink:0}}>
           {side&&(
-            <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"rgba(255,255,255,.04)",borderRadius:4,marginBottom:8,cursor:"pointer"}} onClick={()=>setIsAdmin(!isAdmin)}>
-              <span style={{width:6,height:6,borderRadius:"50%",background:isAdmin?C.ok:C.warn,flexShrink:0}}/>
-              <span style={{fontSize:10,color:C.sideMut,flex:1}}>{isAdmin?"Admin Mode":"Staff Mode"}</span>
-              <span style={{fontSize:9,color:C.sideMut}}>↕</span>
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:8,fontFamily:C.mono,fontWeight:600,letterSpacing:".08em",
+                color:C.sideMut,textTransform:"uppercase",marginBottom:5,paddingLeft:10}}>Mode Akses</div>
+              <div style={{display:"flex",borderRadius:4,overflow:"hidden",border:"1px solid rgba(255,255,255,.07)"}}>
+                {["Admin","Staff"].map(role=>(
+                  <button key={role}
+                    onClick={()=>setIsAdmin(role==="Admin")}
+                    style={{flex:1,padding:"6px 0",border:"none",cursor:"pointer",fontFamily:C.body,fontSize:11,fontWeight:500,transition:"all .12s",
+                      background:(role==="Admin"&&isAdmin)||(role==="Staff"&&!isAdmin)?"rgba(255,255,255,.08)":"transparent",
+                      color:(role==="Admin"&&isAdmin)?C.accent:(role==="Staff"&&!isAdmin)?C.warn:C.sideMut,
+                    }}>
+                    {role==="Admin"&&isAdmin?"● Admin":role==="Staff"&&!isAdmin?"● Staff":role}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <button onClick={()=>setSide(!side)} style={{width:"100%",display:"flex",justifyContent:"center",padding:"6px",background:"transparent",border:"none",cursor:"pointer",color:C.sideMut,fontSize:12}}>{side?"←":"→"}</button>
@@ -556,7 +622,16 @@ export default function App(){
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <header style={{padding:"13px 24px",borderBottom:`1px solid ${C.border}`,background:C.s1,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
           <div>
-            <div style={{fontFamily:C.head,fontWeight:700,fontSize:16,color:C.text,letterSpacing:"-.02em"}}>{nav.find(n=>n.id===menu)?.label}</div>
+            <div style={{fontFamily:C.head,fontWeight:700,fontSize:16,color:C.text,letterSpacing:"-.02em",display:"flex",alignItems:"center",gap:8}}>
+              {nav.find(n=>n.id===menu)?.label}
+              <span style={{fontSize:9,fontWeight:600,letterSpacing:".07em",fontFamily:C.mono,
+                padding:"2px 7px",borderRadius:3,
+                background:isAdmin?C.aBg:C.wBg,
+                color:isAdmin?C.accent:C.warn,
+                border:`1px solid ${isAdmin?C.aBdr:C.wB}`}}>
+                {isAdmin?"ADMIN":"STAFF"}
+              </span>
+            </div>
             <div style={{fontSize:10,color:C.dim,marginTop:1,fontFamily:C.mono}}>Nobitos.com · KOL Tracker</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
