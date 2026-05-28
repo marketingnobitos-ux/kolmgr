@@ -165,6 +165,11 @@ export default function App(){
   },[data,search,fBrand,fCabang,fStatus]);
 
   useEffect(()=>setPage(1),[search,fBrand,fCabang,fStatus]);
+  // Redirect staff keluar dari halaman admin-only saat mode berubah
+  useEffect(()=>{
+    const ADMIN_PAGES=["keuangan"];
+    if(!isAdmin && ADMIN_PAGES.includes(menu)) setMenu("dashboard");
+  },[isAdmin]);
   const paged=filtered.slice((page-1)*PER,page*PER);
   const totalPages=Math.ceil(filtered.length/PER);
 
@@ -237,11 +242,6 @@ export default function App(){
     {id:"tambah",     sym:"+", label:"Tambah KOL"},
   ];
   const sW=side?200:52;
-
-  // Kalau mode berganti jadi Staff & sedang di halaman admin-only → redirect
-  useEffect(()=>{
-    if(!isAdmin && nav.find(n=>n.id===menu)?.adminOnly) setMenu("dashboard");
-  },[isAdmin]);
 
   const renderDashboard=()=>(
     <div className="fi">
@@ -403,23 +403,22 @@ export default function App(){
   };
 
   const renderKeuangan=()=>{
+    const pct=fin.budget>0?Math.min(fin.used/fin.budget*100,100):0;
+    const barC=pct>90?C.err:pct>70?C.warn:C.accent;
     if(!isAdmin) return(
       <div className="fi" style={{display:"flex",flexDirection:"column",alignItems:"center",
         justifyContent:"center",minHeight:"55vh",gap:14,textAlign:"center"}}>
         <div style={{width:52,height:52,borderRadius:"50%",background:C.eBg,
           border:`1px solid ${C.eB}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <span style={{fontSize:22,color:C.err}}>⊘</span>
+          <span style={{fontSize:22,color:C.err}}>&#x2298;</span>
         </div>
         <div style={{fontFamily:C.head,fontWeight:700,fontSize:18,color:C.text}}>Akses Terbatas</div>
         <div style={{fontSize:13,color:C.muted,maxWidth:300,lineHeight:1.6}}>
-          Halaman Keuangan hanya dapat diakses oleh Admin.<br/>
-          Hubungi Admin untuk informasi anggaran.
+          Halaman Keuangan hanya dapat diakses oleh Admin. Hubungi Admin untuk informasi anggaran.
         </div>
-        <Btn v="ghost" onClick={()=>setMenu("dashboard")}>← Kembali ke Database</Btn>
+        <Btn v="ghost" onClick={()=>setMenu("dashboard")}>Kembali ke Database</Btn>
       </div>
     );
-    const pct=fin.budget>0?Math.min(fin.used/fin.budget*100,100):0;
-    const barC=pct>90?C.err:pct>70?C.warn:C.accent;
     return(
       <div className="fi">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
