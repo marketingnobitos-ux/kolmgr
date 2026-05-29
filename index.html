@@ -478,14 +478,17 @@
             approvedAt:x.approvedAt?fmtD(x.approvedAt):"-",
             rejectedAt:x.rejectedAt?fmtD(x.rejectedAt):"-",
           }));
+          // Google Apps Script butuh mode no-cors untuk request dari browser
           await fetch(SHEETS_URL,{
             method:"POST",
+            mode:"no-cors",
             headers:{"Content-Type":"text/plain"},
             body:JSON.stringify(payload),
           });
-          showToast("Data berhasil sync ke Google Sheets");
+          // no-cors tidak bisa baca response — kalau tidak error berarti terkirim
+          showToast("Data terkirim ke Google Sheets");
         }catch(e){
-          showToast("Sync gagal - cek koneksi atau URL","err");
+          showToast("Sync gagal - cek koneksi internet","err");
         }
         setSyncing(false);
       };
