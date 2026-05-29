@@ -222,6 +222,7 @@
       const [isAdmin,setIsAdmin]=useState(false);
       const [side,setSide]=useState(true);
       const [syncing,setSyncing]=useState(false);
+      const [lastSync,setLastSync]=useState(null);
 
       /* PIN */
       const [pinModal,setPinModal]=useState(false);
@@ -282,14 +283,20 @@
         if(!isAdmin&&["keuangan"].includes(menu)) setMenu("dashboard");
       },[isAdmin]);
 
-      // Auto-sync: debounce 2 detik setelah data berubah
+      // Simpan data ke ref supaya selalu fresh di async callback
+      const dataRef = useRef(data);
+      useEffect(()=>{ dataRef.current = data; },[data]);
+
+      // Auto-sync: debounce 1.5 detik setelah data berubah
       const syncTimer = useRef(null);
       const isFirstRender = useRef(true);
       useEffect(()=>{
         if(isFirstRender.current){ isFirstRender.current=false; return; }
         if(!SHEETS_URL) return;
         clearTimeout(syncTimer.current);
-        syncTimer.current = setTimeout(()=>{ handleAutoSync(); }, 2000);
+        syncTimer.current = setTimeout(()=>{
+          doSync(dataRef.current, true);
+        }, 1500);
         return ()=>clearTimeout(syncTimer.current);
       },[data]);
 
@@ -467,23 +474,7 @@
       };
 
       /* ── Google Sheets Sync ── */
-      const syncData=async(rows,silent)=>{
-        if(!SHEETS_URL) return;
-        setSyncing(true);
-        try{
-          await fetch(SHEETS_URL,{
-            method:"POST",mode:"no-cors",
-            headers:{"Content-Type":"text/plain"},
-            body:JSON.stringify(rows),
-          });
-          if(!silent) showToast("Data terkirim ke Google Sheets");
-        }catch(e){
-          if(!silent) showToast("Sync gagal - cek koneksi internet","err");
-        }
-        setSyncing(false);
-      };
-
-      const buildPayload=()=>data.map(x=>({
+      const buildPayload=(d)=>(d||data).map(x=>({
         id:x.id, username:x.tiktokUsername, url:x.tiktokUrl,
         brand:x.brand, cabang:x.cabang, status:x.status,
         stage:gStage(x.pipelineStage).label,
@@ -497,12 +488,26 @@
         rejectedAt:x.rejectedAt?fmtD(x.rejectedAt):"-",
       }));
 
-      const handleSync=async()=>{
-        if(!SHEETS_URL){showToast("SHEETS_URL belum diisi di konfigurasi","err");return;}
-        await syncData(buildPayload(),false);
+      const doSync=async(d, silent)=>{
+        if(!SHEETS_URL) return;
+        setSyncing(true);
+        try{
+          await fetch(SHEETS_URL,{
+            method:"POST", mode:"no-cors",
+            headers:{"Content-Type":"text/plain"},
+            body:JSON.stringify(buildPayload(d)),
+          });
+          const now=new Date();
+          setLastSync(now.getHours().toString().padStart(2,"0")+":"+now.getMinutes().toString().padStart(2,"0")+":"+now.getSeconds().toString().padStart(2,"0"));
+          if(!silent) showToast("Data terkirim ke Google Sheets");
+        }catch(e){
+          if(!silent) showToast("Sync gagal - cek koneksi internet","err");
+        }
+        setSyncing(false);
       };
 
-      const handleAutoSync=()=>syncData(buildPayload(),true);
+      const handleSync=()=>doSync(dataRef.current, false);
+      const handleAutoSync=()=>doSync(dataRef.current, true);
 
       const toggleSel=id=>setSelIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
       const toggleESel=id=>setESelIds(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
@@ -1066,10 +1071,13 @@
                 )}
                 <div style={{background:C.s2,border:`1px solid ${C.border}`,borderRadius:4,padding:"4px 10px",fontSize:10,color:C.muted,fontFamily:C.mono}}>{data.length} KOL</div>
                 {isAdmin&&(
-                  <button onClick={handleSync} disabled={syncing} style={{background:C.okBg,border:`1px solid ${C.okB}`,borderRadius:4,padding:"4px 12px",fontSize:11,color:C.ok,fontFamily:C.body,cursor:syncing?"not-allowed":"pointer",fontWeight:500,opacity:syncing?.7:1,display:"flex",alignItems:"center",gap:5}}>
-                    <span style={{width:6,height:6,borderRadius:"50%",background:syncing?"#F2963A":C.ok,flexShrink:0}}/>
-                    {syncing?"Syncing...":"Sync Sheets"}
-                  </button>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    {lastSync&&<span style={{fontSize:9,color:C.dim,fontFamily:C.mono}}>sync {lastSync}</span>}
+                    <button onClick={handleSync} disabled={syncing} style={{background:C.okBg,border:`1px solid ${C.okB}`,borderRadius:4,padding:"4px 12px",fontSize:11,color:C.ok,fontFamily:C.body,cursor:syncing?"not-allowed":"pointer",fontWeight:500,opacity:syncing?.7:1,display:"flex",alignItems:"center",gap:5}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:syncing?C.warn:C.ok,flexShrink:0}}/>
+                      {syncing?"Syncing...":"Sync Sheets"}
+                    </button>
+                  </div>
                 )}
               </div>
             </header>
